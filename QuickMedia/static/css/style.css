@@ -1,0 +1,75 @@
+/**
+* QuickMedia, an open source media server
+* Copyright (C) 2020  Richard Bariampa
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU Affero General Public License for more details.
+* You should have received a copy of the GNU Affero General Public License
+* along with this program.  If not, see <https://www.gnu.org/licenses/>.
+* 
+* richardbar:          richard1996ba@gmail.com
+**/
+
+body {
+	background-color: #3e3e41;
+}
+a {
+	font-weight: bold;
+}
+.header {
+	position: fixed;
+	left: 0;
+	right: 0;
+	top: 0;
+	height: 80px;
+	color: #fff;
+	background-color: #1c1c1c;
+	padding: 0.1em 15px;
+	font-size: 50px;
+	line-height: 1.5;
+}
+#container {
+	height: 250px;
+	text-align: justify;
+	 -ms-text-justify: distribute-all-lines;
+	text-justify: distribute-all-lines;
+}
+.box {
+	width: 150px;
+	height: 250px;
+	vertical-align: top;
+	display: inline-block;
+	*display: inline;
+	zoom: 1;
+}
+.stretch {
+	width: 100%;
+	display: inline;
+	font-size: 0;
+  	line-height: 0
+}
+.footer {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 45px;
+	color: #fff;
+	background-color: #1c1c1c;
+	padding: 0.1em 15px;
+	font-size: 15px;
+	line-height: 1.5;
+}
+.cAlert {
+	position: fixed;
+	right: 0;
+	top: 150px;
+	padding-top: 150px;
+}

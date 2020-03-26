@@ -19,7 +19,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -39,6 +38,12 @@ namespace QuickMedia
 
         private readonly Dictionary<string, object> _responses = new Dictionary<string, object>();
 
+        private readonly Dictionary<int, Thread> _responseThreads = new Dictionary<int, Thread>();
+
+        private readonly Thread _listenerThread, _threadCleaner, _shutdownWaiter;
+
+        private bool _isRunning = true;
+
         /// <summary>
         /// Create a server and start listening from that port
         /// </summary>
@@ -49,18 +54,59 @@ namespace QuickMedia
             _listener.Prefixes.Add(_url);
             _listener.Start();
 
-            Thread listenerThread = new Thread(() =>
+            _listenerThread = new Thread(() =>
             {
                 Task listener = HandleConnection();
                 listener.GetAwaiter().GetResult();
             });
-            listenerThread.Start();
+            _listenerThread.Start();
+
+            _threadCleaner = new Thread(() =>
+            {
+                while (_isRunning)
+                {
+                    try
+                    {
+                        foreach (KeyValuePair<int, Thread> thread in _responseThreads)
+                        {
+
+                            if (!thread.Value.IsAlive)
+                            {
+                                _responseThreads[thread.Key] = null;
+                                _responseThreads.Remove(thread.Key);
+                            }
+                        }
+                    }
+                    catch { }
+                    GC.Collect();
+
+                    Thread.Sleep(5000);
+                }
+            });
+            _threadCleaner.Start();
+
+            _shutdownWaiter = new Thread(() =>
+            {
+                // Check if it's running every few seconds.
+                // Higher is better.
+                while (_isRunning) Thread.Sleep(1000);
+                // Wait for 1 more GC to run and end.
+                Thread.Sleep(4000);
+                // Close program
+                Environment.Exit(0);
+            });
+            _shutdownWaiter.Start();
+        }
+
+        public void Stop()
+        {
+            _isRunning = false;
         }
 
         public void AddPage(string path, string response) => _responses.Add(path, response);
-        public void AddPage(string path, Media media) => AddResponse($"files/{path}", media);
-        public void AddPage(string path, Func<string> func) => AddResponse($"funcs/{path}", func);
-        public void AddPage(string path, Func<Dictionary<string, string>, string> func) => AddResponse($"funcs/{path}", func);
+        public void AddPage(string path, Media media) => AddResponse(path, media);
+        public void AddPage(string path, Func<string> func) => AddResponse(path, func);
+        public void AddPage(string path, Func<Dictionary<string, string>, string> func) => AddResponse(path, func);
 
         private void AddResponse(string path, object o)
         {
@@ -72,7 +118,7 @@ namespace QuickMedia
 
         private async Task HandleConnection()
         {
-            while (true)
+            while (_isRunning)
             {
                 try
                 {
@@ -84,15 +130,8 @@ namespace QuickMedia
 
                     string path = System.Uri.UnescapeDataString(request.Url.AbsolutePath[1..]);
                     if (String.IsNullOrEmpty(path) || string.IsNullOrWhiteSpace(path)) path = "index";
-                    if (path == "favicon.ico")
-                    {
-                        new Thread(() =>
-                        {
-                            byte[] responseText = File.ReadAllBytes("favicon.ico");
-                            response.OutputStream.Write(responseText, 0, responseText.Length);
-                            response.Close();
-                        }).Start();
-                    }
+                    if (path == "favicon.ico") continue;
+
                     string[] parameters = Array.Empty<string>();
                     try
                     {
@@ -104,23 +143,32 @@ namespace QuickMedia
                     if (_responses.ContainsKey(path))
                     {
                         if (_responses[path] is string)
-                            new Thread(() =>
-                            {
-                                byte[] responseText = Encoding.ASCII.GetBytes((string)_responses[path]);
-                                response.OutputStream.Write(responseText, 0, responseText.Length);
-                                response.Close();
-                            }).Start();
-                        else if (_responses[path] is Media)
-                            new Thread(() => SendFile(response, ((Media)_responses[path]).DataPath, Media.typeToString[((Media)_responses[path]).Type])).Start();
+                        {
+                            Thread thread = new Thread(() => SendResponse(response, (string)_responses[path], true));
+                            int threadID = thread.ManagedThreadId;
+                            _responseThreads.Add(threadID, thread);
+                            thread.Start();
+                            thread = null;
+                        }
                         else if (_responses[path] is Func<string>)
-                            new Thread(() =>
-                            {
-                                byte[] responseText = Encoding.ASCII.GetBytes(((Func<string>)_responses[path])());
-                                response.OutputStream.Write(responseText, 0, responseText.Length);
-                                response.Close();
-                            }).Start();
+                        {
+                            Thread thread = new Thread(() => SendResponse(response, ((Func<string>)_responses[path])(), true));
+                            int threadID = thread.ManagedThreadId;
+                            _responseThreads.Add(threadID, thread);
+                            thread.Start();
+                            thread = null;
+                        }
+                        else if (_responses[path] is Media)
+                        {
+                            Thread thread = new Thread(() => SendFile(response, ((Media)_responses[path]).DataPath, Media.typeToString[((Media)_responses[path]).Type]));
+                            int threadID = thread.ManagedThreadId;
+                            _responseThreads.Add(threadID, thread);
+                            thread.Start();
+                            thread = null;
+                        }
                         else if (_responses[path] is Func<Dictionary<string, string>, string>)
-                            new Thread(() =>
+                        {
+                            Thread thread = new Thread(() =>
                             {
                                 Dictionary<string, string> paramets = new Dictionary<string, string>();
                                 for (int i = 0; i < parameters.Length; i++)
@@ -128,11 +176,14 @@ namespace QuickMedia
                                     if (parameters[i] == "") continue;
                                     paramets.Add(parameters[i].Split('=')[0], (parameters[i].Split('=').Length == 2) ? parameters[i].Split('=')[1] : "");
                                 }
-                                byte[] responseText = Encoding.ASCII.GetBytes(((Func<Dictionary<string, string>, string>)_responses[path])(paramets));
+                                SendResponse(response, ((Func<Dictionary<string, string>, string>)_responses[path])(paramets), true);
                                 parameters = null;
-                                response.OutputStream.Write(responseText, 0, responseText.Length);
-                                response.Close();
-                            }).Start();
+                            });
+                            int threadID = thread.ManagedThreadId;
+                            _responseThreads.Add(threadID, thread);
+                            thread.Start();
+                            thread = null;
+                        }
                     }
                     else
                     {
@@ -145,6 +196,49 @@ namespace QuickMedia
         }
 
         /// <summary>
+        /// Used to send a response that is stored in memory over an HTTP Connection. Must be used
+        /// asynchronous because responses might be large or connection might be slow
+        /// </summary>
+        /// <param name="response">HTTP Connection - Response</param>
+        /// <param name="responseData">String - Response text to be sent</param>
+        /// <param name="isFinal">Boolean - Will close connection if true after it sends data</param>
+        private void SendResponse(HttpListenerResponse response, string responseData, bool isFinal = false)
+        {
+            SendResponse(new BinaryWriter(response.OutputStream), Encoding.ASCII.GetBytes(responseData), responseData.Length, isFinal);
+        }
+
+        /// <summary>
+        /// Used to send a response that is stored in memory over an HTTP Connection. Must be used
+        /// asynchronous because responses might be large or connection might be slow
+        /// </summary>
+        /// <param name="response">HTTP Connection - Response</param>
+        /// <param name="bufferData">Byte array - Response Buffer</param>
+        /// /// <param name="isFinal">Boolean - Will close connection if true after it sends data</param>
+        private void SendResponse(HttpListenerResponse response, byte[] bufferData, int count, bool isFinal = false)
+        {
+            SendResponse(new BinaryWriter(response.OutputStream), bufferData, count, isFinal);
+            if (isFinal != false)
+                response.Close();
+        }
+
+        private void SendResponse(BinaryWriter writer, string responseData, bool isFinal = false)
+        {
+            SendResponse(writer, Encoding.ASCII.GetBytes(responseData), responseData.Length, isFinal);
+        }
+
+        private void SendResponse(BinaryWriter writer, byte[] bufferData, int count, bool isFinal = false)
+        {
+            try
+            {
+                writer.Write(bufferData, 0, count);
+                writer.Flush();
+                if (isFinal)
+                    writer.Close();
+            }
+            catch (Exception e){ Console.WriteLine(e); }
+        }
+
+        /// <summary>
         /// Used for sending a file over an HTTP Connection. Must be used asynchronous because
         /// files might be large or connection might be slow.
         /// </summary>
@@ -153,8 +247,8 @@ namespace QuickMedia
         /// <param name="contenType">Type of content of file</param>
         private void SendFile(HttpListenerResponse response, string dataFile, string contenType)
         {
-            long memoryUsed = Process.GetCurrentProcess().PrivateMemorySize64;
-            byte[] buffer = new byte[64 * 1024];
+            response.KeepAlive = true;
+            byte[] buffer = new byte[16 * 1024];
             int read;
             try
             {
@@ -164,18 +258,13 @@ namespace QuickMedia
                 response.SendChunked = false;
                 response.ContentType = contenType;
 
-                using BinaryWriter writer = new BinaryWriter(response.OutputStream);
+                BinaryWriter writer = new BinaryWriter(response.OutputStream);
                 while ((read = fs.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    writer.Write(buffer, 0, read);
-                    writer.Flush();
-                }
+                    SendResponse(writer, buffer, read, false);
                 writer.Close();
+                response.Close();
             }
             catch { }
-            response.Close();
-            memoryUsed = Process.GetCurrentProcess().PrivateMemorySize64 - memoryUsed;
-            if (memoryUsed > 64 * 1024) GC.Collect();
         }
     }
 }

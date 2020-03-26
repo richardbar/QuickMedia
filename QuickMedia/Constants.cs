@@ -22,7 +22,7 @@ namespace QuickMedia
     class Constants
     {
         public static string ServiceName = "QuickMedia";
-        public static string ServiceVersion = "Alpha 1.0.1";
+        public static string ServiceVersion = "Alpha 1.0.2";
         public static string ServiceURL = "localhost";
     }
 }

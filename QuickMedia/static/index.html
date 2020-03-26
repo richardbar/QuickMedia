@@ -1,0 +1,127 @@
+﻿<!--
+QuickMedia, an open source media server
+Copyright (C) 2020  Richard Bariampa
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+richardbar:          richard1996ba@gmail.com
+-->
+
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>QuickMedia</title>
+	<link rel="stylesheet" href="css/style.css">
+
+	<!-- [jQuerry] -->
+	<script src="js/jQuerry-min.js"></script>
+	<!-- [/jQuerry] -->
+	<!-- [Bootstrap] -->
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+	<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+	<!-- [/Bootstrap] -->
+
+	<script src="js/GJS.js"></script>
+</head>
+<body>
+	<div class="header">
+		<div style="text-align: center;">QuickMedia</div>
+	</div>
+	<div style="position: fixed; left: 0; right: 0;top: 80px; background-color: #1c1c1c">
+		<nav class="navbar navbar-expand-lg navbar-dark">
+			<a class="navbar-brand" href="index.html">Home</a>
+			<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navBar" aria-controls="navBar" aria-expanded="false" aria-label="Toggle navigation">
+				<span class="navbar-toggler-icon"></span>
+			</button>
+			<div class="collapse navbar-collapse" id="navBar">
+				<ul class="navbar-nav">
+					<li class="nav-item active">
+						<a class="nav-link" href="#0">Audio</a>
+					</li>
+					<li class="nav-item active">
+						<a class="nav-link" href="#1">Video</a>
+					</li>
+					<li class="nav-item active">
+						<a class="nav-link" href="#2">Images</a>
+					</li>
+				</ul>
+			</div>
+		</nav>
+	</div>
+	<div class="cAlert" style="display: none">
+		<div class="alert" role="alert" id="alert_m">
+		</div>
+	</div>
+	<div style="padding-top: 150px; text-align: center;">
+		<!-- TODO: Add here the media -->
+	</div>
+	<div class="footer">
+		<div style="text-align: center;">Powered by <a href="https://github.com/richardbar/QuickMedia" style="color: #fff">QuickMedia</a></div>
+	</div>
+	<script>
+		var data;
+		function isIE() {
+			return (navigator.userAgent.indexOf('MSIE') > -1 || navigator.userAgent.lastIndexOf('Trident/') > -1);
+		}
+
+		function loadData(_data) {
+			console.log(_data);
+			data = JSON.parse(_data);
+		}
+
+		function checkScreenSize() {
+			while (window.innerWidth < 580 || window.innerHeight < 350) {
+				showAlert('Screen size is too small to render data', null, AlertLevels.error);
+			}
+		}
+
+		function reloadData() {
+			var TypeOfMedia = window.location.href.split('#')[1];
+			if (isUndefined(TypeOfMedia)) window.location.reload('index.html');
+			TypeOfMedia = parseInt(TypeOfMedia);
+			for (var i = 0; i < data.length; i++) {
+				if (data[i].Type != TypeOfMedia) continue;
+				console.log(data[i].Name + '->' + data[i].Path);
+			}
+			return;
+		}
+
+		$(document).ready(function () {
+			if (isIE()) {
+				$('#alert_m').text('QuickMedia does not support IE yet. If if this box gets clicked, it will disappear but the website will not work');
+				$('#alert_m').addClass('alert-danger');
+				$('body > *:not(.cAlert)').css('filter', 'blur(3px)');
+				$('.cAlert').css('display', 'block');
+				$('.cAlert')[0].style.cursor = 'pointer';
+				$('.cAlert')[0].onclick = function () {
+					$('.cAlert').css('display', 'none');
+				};
+				throw null;
+			}
+
+			checkScreenSize();
+
+			try {
+				getFromUrl('/funcs/getAll?format=json').then(loadData);
+				$(window).bind('hashchange', reloadData);
+				window.addEventListener('resize', checkScreenSize);
+			}
+			catch (err) {
+				showAlert(err, null, AlertLevels.error);
+			}
+		});
+	</script>
+</body>
+</html>

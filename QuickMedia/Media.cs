@@ -26,7 +26,10 @@ namespace QuickMedia
         MP3,
         MP4,
         JPG,
-        TXT
+        TXT,
+        HTML,
+        CSS,
+        JS
     }
 
     class Media
@@ -36,10 +39,28 @@ namespace QuickMedia
             { TypeOfMedia.MP3, "audio/mp3" },
             { TypeOfMedia.MP4, "video/mp4" },
             { TypeOfMedia.JPG, "image/jpeg" },
-            { TypeOfMedia.TXT, "text/javascript" }
+            { TypeOfMedia.TXT, "text/text" },
+            { TypeOfMedia.HTML, "text/html" },
+            { TypeOfMedia.CSS, "text/css" },
+            { TypeOfMedia.JS, "text/javascript" }
         };
         public TypeOfMedia Type;
         public string Name = "";
         public string DataPath = "";
+        public string Path = "";
+
+        public static string ToString(Media[] medias)
+        {
+            if (medias.Length == 0 || medias == null) return "[]";
+            string returny = "[";
+
+            for (int i = 0; i < medias.Length; i++)
+                returny += $"{{\"Type\":{(int)medias[i].Type},\"Name\":\"{medias[i].Name}\",\"Path\":\"{medias[i].Path}\"}},";
+
+            returny = returny.Substring(0, returny.Length - 1);
+            returny += "]";
+
+            return returny;
+        }
     }
 }
