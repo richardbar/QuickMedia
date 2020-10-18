@@ -29,7 +29,7 @@ namespace QuickMedia
     {
         public Media[] medias;
 
-        public static string __DIR__ = @$"{Environment.CurrentDirectory}\..\..\..";
+        public static string __DIR__ = Environment.CurrentDirectory;
 
         public Program()
         {
@@ -64,32 +64,25 @@ namespace QuickMedia
                 }
             });
 
-            Media[] staticFiles = new Media[4];
+            Media[] staticFiles = new Media[3];
             staticFiles[0] = new Media()
             {
                 Name = "index",
-                DataPath = @$"{ __DIR__ }\static\index.html",
+                DataPath = @$"{ __DIR__ }\AppData\static\index.html",
                 Path = "index",
                 Type = TypeOfMedia.HTML
             };
             staticFiles[1] = new Media()
             {
                 Name = "General JavaScript",
-                DataPath = @$"{__DIR__}\static\js\GJS.js",
+                DataPath = @$"{__DIR__}\AppData\static\js\GJS.js",
                 Path = "js/GJS.js",
                 Type = TypeOfMedia.JS
             };
             staticFiles[2] = new Media()
             {
-                Name = "JQuerry",
-                DataPath = @$"{__DIR__}\static\js\jQuerry-min.js",
-                Path = "js/jQuerry-min.js",
-                Type = TypeOfMedia.JS
-            };
-            staticFiles[3] = new Media()
-            {
                 Name = "General StyleSheet",
-                DataPath = @$"{__DIR__}\static\css\style.css",
+                DataPath = @$"{__DIR__}\AppData\static\css\style.css",
                 Path = "css/style.css",
                 Type = TypeOfMedia.CSS
             };
