@@ -1,0 +1,16 @@
+﻿footer {
+    position: fixed;
+    bottom: 0px;
+    background-color: #343A40;
+    width: 100%;
+    text-align: center;
+    color: #FFFFFF;
+    font-weight: bolder;
+}
+
+div.content
+{
+    width: 80%;
+    height: 100%;
+    margin: 0 auto;
+}

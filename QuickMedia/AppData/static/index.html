@@ -1,128 +1,66 @@
-﻿<!--
-QuickMedia, an open source media server
-Copyright (C) 2020  Richard Bariampa
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published
-by the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-richardbar:          richard1996ba@gmail.com
--->
-
-<!doctype html>
+﻿<!DOCTYPE html>
 <html>
 <head>
-	<meta charset="utf-8">
-	<title>QuickMedia</title>
-	<link rel="stylesheet" href="css/style.css">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="contributors" content="Rikarnto Bariampa" />
+    <title>QuickMedia</title>
 
-	<!-- [jQuerry] -->
-	<script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
-	<!-- [/jQuerry] -->
+    <!-- [jQuery] -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+    <!-- [/jQuery] -->
+    <!-- [Popper] -->
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+    <!-- [/Popper] -->
+    <!-- [Bootstrap] -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
+    <!-- [/Bootstrap] -->
 
-	<!-- [Bootstrap] -->
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-	<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
-	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
-	<!-- [/Bootstrap] -->
-
-	<script src="js/GJS.js"></script>
+    <!-- [QuickMedia CSS] -->
+    <link rel="stylesheet" href="css/QuickMedia.css" />
+    <!-- [/QuickMedia CSS] -->
+    
+    <!-- [QuickMedia JS] -->
+    <script src="js/QuickMedia.js"></script>
+    <!-- [/QuickMedia JS] -->
 </head>
-<body>
-	<div class="header">
-		<div style="text-align: center;">QuickMedia</div>
-	</div>
-	<div style="position: fixed; left: 0; right: 0;top: 80px; background-color: #1c1c1c">
-		<nav class="navbar navbar-expand-lg navbar-dark">
-			<a class="navbar-brand" href="index.html">Home</a>
-			<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navBar" aria-controls="navBar" aria-expanded="false" aria-label="Toggle navigation">
-				<span class="navbar-toggler-icon"></span>
-			</button>
-			<div class="collapse navbar-collapse" id="navBar">
-				<ul class="navbar-nav">
-					<li class="nav-item active">
-						<a class="nav-link" href="#0">Audio</a>
-					</li>
-					<li class="nav-item active">
-						<a class="nav-link" href="#1">Video</a>
-					</li>
-					<li class="nav-item active">
-						<a class="nav-link" href="#2">Images</a>
-					</li>
-				</ul>
-			</div>
-		</nav>
-	</div>
-	<div class="cAlert" style="display: none">
-		<div class="alert" role="alert" id="alert_m">
-		</div>
-	</div>
-	<div style="padding-top: 150px; text-align: center;">
-		<!-- TODO: Add here the media -->
-	</div>
-	<div class="footer">
-		<div style="text-align: center;">Powered by <a href="https://github.com/richardbar/QuickMedia" style="color: #fff">QuickMedia</a></div>
-	</div>
-	<script>
-		var data;
-		function isIE() {
-			return (navigator.userAgent.indexOf('MSIE') > -1 || navigator.userAgent.lastIndexOf('Trident/') > -1);
-		}
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <a class="navbar-brand" href="index.html">QuickMedia</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarDropdown">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarDropdown">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item active">
+                        <a class="nav-link" href="index.html">Home <span class="sr-only">(current)</span></a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="#Photos">Photos </a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="#Videos">Videos </a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="#Audios">Audios </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
 
-		function loadData(_data) {
-			console.log(_data);
-			data = JSON.parse(_data);
-		}
+        <br />
+        <br />
 
-		function checkScreenSize() {
-			while (window.innerWidth < 580 || window.innerHeight < 350) {
-				showAlert('Screen size is too small to render data', null, AlertLevels.error);
-			}
-		}
+        <div class="content" id="content">
+            
+        </div>
 
-		function reloadData() {
-			var TypeOfMedia = window.location.href.split('#')[1];
-			if (isUndefined(TypeOfMedia)) window.location.reload('index.html');
-			TypeOfMedia = parseInt(TypeOfMedia);
-			for (var i = 0; i < data.length; i++) {
-				if (data[i].Type != TypeOfMedia) continue;
-				console.log(data[i].Name + '->' + data[i].Path);
-			}
-			return;
-		}
+        <br />
+        <br />
 
-		$(document).ready(function () {
-			if (isIE()) {
-				$('#alert_m').text('QuickMedia does not support IE yet. If if this box gets clicked, it will disappear but the website will not work');
-				$('#alert_m').addClass('alert-danger');
-				$('body > *:not(.cAlert)').css('filter', 'blur(3px)');
-				$('.cAlert').css('display', 'block');
-				$('.cAlert')[0].style.cursor = 'pointer';
-				$('.cAlert')[0].onclick = function () {
-					$('.cAlert').css('display', 'none');
-				};
-				throw null;
-			}
-
-			checkScreenSize();
-
-			try {
-				getFromUrl('/funcs/getAll?format=json').then(loadData);
-				$(window).bind('hashchange', reloadData);
-				window.addEventListener('resize', checkScreenSize);
-			}
-			catch (err) {
-				showAlert(err, null, AlertLevels.error);
-			}
-		});
-	</script>
-</body>
+        <footer class="page-footer font-small blue">
+            <div class="footer-copyright text-center py-3">Powered by <a href="https://github.com/richardbar/QuickMedia">QuickMedia</a></div>
+        </footer>
+    </body>
 </html>

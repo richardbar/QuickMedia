@@ -1,99 +1,50 @@
-﻿/**
-* QuickMedia, an open source media server
-* Copyright (C) 2020  Richard Bariampa
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Affero General Public License as published
-* by the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Affero General Public License for more details.
-* You should have received a copy of the GNU Affero General Public License
-* along with this program.  If not, see <https://www.gnu.org/licenses/>.
-* 
-* richardbar:          richard1996ba@gmail.com
-**/
-
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System;
-using Newtonsoft.Json;
-using System.Threading;
+using System.Linq;
 
 namespace QuickMedia
 {
-    class Program
+    public class Program
     {
-        public Media[] medias;
-
-        public static string __DIR__ = Environment.CurrentDirectory;
-
-        public Program()
+        public static Media[] meds;
+        public static string GetMedias(SortedDictionary<string, string> arguments)
         {
-            Server server = new Server(8080);
-            if (!File.Exists("medias.json")) File.WriteAllText("medias.json", "[]");
-            medias = JsonConvert.DeserializeObject<Media[]>(File.ReadAllText("medias.json"));
-            for (int i = 0; i < medias.Length; i++)
-                server.AddPage(medias[i].Path, medias[i]);
-            server.AddPage("shutdown", (Dictionary<string, string> parameters) =>
+            if (!arguments.ContainsKey("type"))
+                return JsonConvert.SerializeObject(meds);
+            switch (arguments["type"])
             {
-                server.Stop();
-                return "";
-            });
-            server.AddPage("getAll", (Dictionary<string, string> paramets) => {
-                if (!paramets.ContainsKey("format")) return "";
-                switch (paramets["format"].ToLower())
-                {
-                    case "json":
-                        return Media.ToString(medias);
-                    case "xml":
-                        string returny = "<?xml version=\"1.0\" encoding=\"ASCII\"?><medias>";
-                        for (int i = 0; i < medias.Length; i++)
-                            returny += $"<media>" +
-                                       $"<Type>{medias[i].Type}</Type>" +
-                                       $"<Name>{medias[i].Name}</Name>" +
-                                       $"<DataPath>{medias[i].DataPath}</DataPath>" +
-                                       $"</media>";
-                        returny += "</medias>";
-                        return returny;
-                    default:
-                        return "";
-                }
-            });
-
-            Media[] staticFiles = new Media[3];
-            staticFiles[0] = new Media()
-            {
-                Name = "index",
-                DataPath = @$"{ __DIR__ }\AppData\static\index.html",
-                Path = "index",
-                Type = TypeOfMedia.HTML
-            };
-            staticFiles[1] = new Media()
-            {
-                Name = "General JavaScript",
-                DataPath = @$"{__DIR__}\AppData\static\js\GJS.js",
-                Path = "js/GJS.js",
-                Type = TypeOfMedia.JS
-            };
-            staticFiles[2] = new Media()
-            {
-                Name = "General StyleSheet",
-                DataPath = @$"{__DIR__}\AppData\static\css\style.css",
-                Path = "css/style.css",
-                Type = TypeOfMedia.CSS
-            };
-
-            for (int i = 0; i < staticFiles.Length; i++)
-                server.AddPage(staticFiles[i].Path, staticFiles[i]);
+                case "photo":
+                    return JsonConvert.SerializeObject(from med in meds where med.type == "image/jpeg" || med.type == "image/png" select med);
+                case "video":
+                    return JsonConvert.SerializeObject(from med in meds where med.type == "video/mpeg" || med.type == "video/mp4" select med);
+                case "audio":
+                    return JsonConvert.SerializeObject(from med in meds where med.type == "video/mpeg" select med);
+            }
+            return "[]";
         }
 
-        public static void Main()
+        public static void Main(string[] args)
         {
-            _ = new Program();
+            Server srv = new Server(8080);
+            srv.AddPage("index", new Media() { directory = "AppData/static/index.html", type = "text/html" });
+            srv.AddPage("", new Media() { directory = "AppData/static/index.html", type = "text/html" });
+            srv.AddPage("js/QuickMedia.js", new Media() { directory = "AppData/static/js/QuickMedia.js", type = "application/javascript" });
+            srv.AddPage("css/QuickMedia.css", new Media() { directory = "AppData/static/css/QuickMedia.css", type = "text/css" });
+
+            if (!File.Exists("AppData/media.json"))
+                File.WriteAllText("AppData/media.json", "[]");
+            meds = JsonConvert.DeserializeObject<Media[]>(File.ReadAllText("AppData/media.json"));
+            foreach (Media med in meds)
+            {
+                med.fileName = $"media/{med.fileName}";
+                med.directory = $"AppData/media/{med.directory}";
+
+                srv.AddPage(med.fileName, med);
+            }
+            Func<SortedDictionary<string, string>, string> GetMeds = GetMedias;
+            srv.AddPage("getMedias", GetMeds);
         }
     }
 }

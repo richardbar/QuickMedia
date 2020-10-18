@@ -1,23 +1,4 @@
-﻿/**
-* QuickMedia, an open source media server
-* Copyright (C) 2020  Richard Bariampa
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Affero General Public License as published
-* by the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Affero General Public License for more details.
-* You should have received a copy of the GNU Affero General Public License
-* along with this program.  If not, see <https://www.gnu.org/licenses/>.
-* 
-* richardbar:          richard1996ba@gmail.com
-**/
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -27,29 +8,25 @@ using System.Threading.Tasks;
 
 namespace QuickMedia
 {
-    /// <summary>
-    /// Used for the Creation of an HTTP Server listening from a standart port
-    /// </summary>
-    class Server
+    public class Media
+    {
+        public string fileName;
+        public string directory;
+        public string type;
+    }
+
+    public class Server
     {
         private readonly string _url;
-
         private readonly HttpListener _listener = new HttpListener();
-
-        private readonly Dictionary<string, object> _responses = new Dictionary<string, object>();
-
-        private readonly Dictionary<int, Thread> _responseThreads = new Dictionary<int, Thread>();
-
+        private readonly SortedDictionary<string, object> _responses = new SortedDictionary<string, object>();
+        private readonly SortedDictionary<int, Thread> _responseThreads = new SortedDictionary<int, Thread>();
         private readonly Thread _listenerThread, _threadCleaner, _shutdownWaiter;
+        public bool _isRunning = true;
 
-        private bool _isRunning = true;
-
-        /// <summary>
-        /// Create a server and start listening from that port
-        /// </summary>
         public Server(uint port)
         {
-            _url = $"http://{Constants.ServiceURL}:{port}/";
+            _url = $"http://localhost:{port}/";
 
             _listener.Prefixes.Add(_url);
             _listener.Start();
@@ -69,15 +46,29 @@ namespace QuickMedia
                     {
                         foreach (KeyValuePair<int, Thread> thread in _responseThreads)
                         {
-
-                            if (!thread.Value.IsAlive)
+                            try
                             {
-                                _responseThreads[thread.Key] = null;
-                                _responseThreads.Remove(thread.Key);
+                                if (!thread.Value.IsAlive)
+                                {
+                                    _responseThreads[thread.Key] = null;
+                                    _responseThreads.Remove(thread.Key);
+                                }
+                            }
+                            catch
+                            {
+#if DEBUG
+                                Console.Error.WriteLine("There was an exception while cleaning reponse Threads");
+#endif
                             }
                         }
                     }
-                    catch { }
+                    catch
+                    {
+#if DEBUG
+                        Console.Error.WriteLine("There was an exception while cleaning reponse Threads");
+#endif
+                    }
+
                     GC.Collect();
 
                     Thread.Sleep(5000);
@@ -87,33 +78,30 @@ namespace QuickMedia
 
             _shutdownWaiter = new Thread(() =>
             {
-                // Check if it's running every few seconds.
-                // Higher is better.
                 while (_isRunning) Thread.Sleep(1000);
-                // Wait for 1 more GC to run and end.
+
                 Thread.Sleep(4000);
-                // Close program
+
+                _listenerThread.Abort();
+                _threadCleaner.Abort();
+
+                _listener.Close();
+
                 Environment.Exit(0);
             });
             _shutdownWaiter.Start();
         }
 
-        public void Stop()
-        {
-            _isRunning = false;
-        }
+        public Server() : this(8080) { }
 
-        public void AddPage(string path, string response) => _responses.Add(path, response);
-        public void AddPage(string path, Media media) => AddResponse(path, media);
-        public void AddPage(string path, Func<string> func) => AddResponse(path, func);
-        public void AddPage(string path, Func<Dictionary<string, string>, string> func) => AddResponse(path, func);
-
-        private void AddResponse(string path, object o)
+        public bool AddPage(string path, object response)
         {
             if (_responses.ContainsKey(path))
-                _responses[path] = o;
+                _responses[path] = response;
             else
-                _responses.Add(path, o);
+                _responses.Add(path, response);
+
+            return _responses[path] == response;
         }
 
         private async Task HandleConnection()
@@ -122,108 +110,79 @@ namespace QuickMedia
             {
                 try
                 {
-                    HttpListenerContext context = await _listener.GetContextAsync();
-                    Console.WriteLine("Device connected");
+                    HttpListenerContext ctx = await _listener.GetContextAsync();
+                    HttpListenerRequest req = ctx.Request;
+                    HttpListenerResponse res = ctx.Response;
 
-                    HttpListenerRequest request = context.Request;
-                    HttpListenerResponse response = context.Response;
+                    string path = Uri.UnescapeDataString(req.Url.AbsolutePath[1..].Split("?")[0]);
 
-                    string path = System.Uri.UnescapeDataString(request.Url.AbsolutePath[1..]);
-                    if (String.IsNullOrEmpty(path) || string.IsNullOrWhiteSpace(path)) path = "index";
-                    if (path == "favicon.ico") continue;
+#if DEBUG
+                    Console.WriteLine($"Device connected from {req.UserAgent} and is requesting {path}");
+#endif
 
-                    string[] parameters = Array.Empty<string>();
+                    res.AddHeader("Access-Control-Allow-Headers", "Content-Type, Accept, X-Requested-With");
+                    res.AddHeader("Access-Control-Allow-Methods", "GET, POST");
+                    res.AppendHeader("Access-Control-Allow-Origin", "*");
+
                     try
                     {
-                        parameters = request.RawUrl[1..].Substring(path.Length)[1..].Split('&');
-                    }
-                    catch { }
+                        Object response = _responses[path];
 
-                    Console.WriteLine(path);
-                    if (_responses.ContainsKey(path))
-                    {
-                        if (_responses[path] is string)
+                        if (response is string)
                         {
-                            Thread thread = new Thread(() => SendResponse(response, (string)_responses[path], true));
+                            Thread thread = new Thread(() => SendResponse(res, (string)response));
                             int threadID = thread.ManagedThreadId;
                             _responseThreads.Add(threadID, thread);
                             thread.Start();
-                            thread = null;
                         }
-                        else if (_responses[path] is Func<string>)
+                        else if (response is Func<string>)
                         {
-                            Thread thread = new Thread(() => SendResponse(response, ((Func<string>)_responses[path])(), true));
+                            Thread thread = new Thread(() => SendResponse(res, ((Func<string>)response)()));
                             int threadID = thread.ManagedThreadId;
                             _responseThreads.Add(threadID, thread);
                             thread.Start();
-                            thread = null;
                         }
-                        else if (_responses[path] is Media)
+                        else if (response is Func<SortedDictionary<string, string>, string>)
                         {
-                            Thread thread = new Thread(() => SendFile(response, ((Media)_responses[path]).DataPath, Media.typeToString[((Media)_responses[path]).Type]));
-                            int threadID = thread.ManagedThreadId;
-                            _responseThreads.Add(threadID, thread);
-                            thread.Start();
-                            thread = null;
-                        }
-                        else if (_responses[path] is Func<Dictionary<string, string>, string>)
-                        {
-                            Thread thread = new Thread(() =>
+                            SortedDictionary<string, string> arguments = new SortedDictionary<string, string>();
+                            string[] postData = new StreamReader(req.InputStream, req.ContentEncoding).ReadToEnd().Split("&");
+                            foreach (string data in postData)
                             {
-                                Dictionary<string, string> paramets = new Dictionary<string, string>();
-                                for (int i = 0; i < parameters.Length; i++)
-                                {
-                                    if (parameters[i] == "") continue;
-                                    paramets.Add(parameters[i].Split('=')[0], (parameters[i].Split('=').Length == 2) ? parameters[i].Split('=')[1] : "");
-                                }
-                                SendResponse(response, ((Func<Dictionary<string, string>, string>)_responses[path])(paramets), true);
-                                parameters = null;
-                            });
+                                string[] splits = data.Split(new char[] { '=' }, 2);
+                                if (splits.Length == 1)
+                                    arguments[splits[0]] = "";
+                                else
+                                    arguments[splits[0]] = splits[1];
+                            }
+
+                            Thread thread = new Thread(() => SendResponse(res, ((Func<SortedDictionary<string, string>, string>)response)(arguments)));
+                            int threadID = thread.ManagedThreadId;
+                            _responseThreads.Add(threadID, thread);
+                            thread.Start();
+                        }
+                        else if (response is Media)
+                        {
+                            Thread thread = new Thread(() => SendFile(res, ((Media)response).directory, ((Media)response).type));
                             int threadID = thread.ManagedThreadId;
                             _responseThreads.Add(threadID, thread);
                             thread.Start();
                             thread = null;
                         }
                     }
-                    else
+                    catch (Exception)
                     {
-                        response.StatusCode = 404;
-                        response.Close();
+                        res.StatusCode = 404;
+                        res.Close(); 
                     }
                 }
                 catch { }
             }
         }
 
-        /// <summary>
-        /// Used to send a response that is stored in memory over an HTTP Connection. Must be used
-        /// asynchronous because responses might be large or connection might be slow
-        /// </summary>
-        /// <param name="response">HTTP Connection - Response</param>
-        /// <param name="responseData">String - Response text to be sent</param>
-        /// <param name="isFinal">Boolean - Will close connection if true after it sends data</param>
-        private void SendResponse(HttpListenerResponse response, string responseData, bool isFinal = false)
+        private void SendResponse(HttpListenerResponse res, string response)
         {
-            SendResponse(new BinaryWriter(response.OutputStream), Encoding.ASCII.GetBytes(responseData), responseData.Length, isFinal);
-        }
-
-        /// <summary>
-        /// Used to send a response that is stored in memory over an HTTP Connection. Must be used
-        /// asynchronous because responses might be large or connection might be slow
-        /// </summary>
-        /// <param name="response">HTTP Connection - Response</param>
-        /// <param name="bufferData">Byte array - Response Buffer</param>
-        /// /// <param name="isFinal">Boolean - Will close connection if true after it sends data</param>
-        private void SendResponse(HttpListenerResponse response, byte[] bufferData, int count, bool isFinal = false)
-        {
-            SendResponse(new BinaryWriter(response.OutputStream), bufferData, count, isFinal);
-            if (isFinal != false)
-                response.Close();
-        }
-
-        private void SendResponse(BinaryWriter writer, string responseData, bool isFinal = false)
-        {
-            SendResponse(writer, Encoding.ASCII.GetBytes(responseData), responseData.Length, isFinal);
+            SendResponse(new BinaryWriter(res.OutputStream), Encoding.ASCII.GetBytes(response), response.Length);
+            res.Close();
         }
 
         private void SendResponse(BinaryWriter writer, byte[] bufferData, int count, bool isFinal = false)
@@ -232,37 +191,36 @@ namespace QuickMedia
             {
                 writer.Write(bufferData, 0, count);
                 writer.Flush();
+
                 if (isFinal)
                     writer.Close();
             }
-            catch (Exception e){ Console.WriteLine(e); }
+            catch { }
         }
 
-        /// <summary>
-        /// Used for sending a file over an HTTP Connection. Must be used asynchronous because
-        /// files might be large or connection might be slow.
-        /// </summary>
-        /// <param name="response">HTTP Connection - Response</param>
-        /// <param name="dataFile">String - Location of file to be sent</param>
-        /// <param name="contenType">Type of content of file</param>
-        private void SendFile(HttpListenerResponse response, string dataFile, string contenType)
+        private void SendFile(HttpListenerResponse res, string datafile, string contentType)
         {
-            response.KeepAlive = true;
+            res.KeepAlive = true;
             byte[] buffer = new byte[16 * 1024];
             int read;
             try
             {
-                using FileStream fs = File.OpenRead(dataFile);
+                using FileStream fs = File.OpenRead(datafile);
 
-                response.ContentLength64 = fs.Length;
-                response.SendChunked = false;
-                response.ContentType = contenType;
+                res.ContentLength64 = fs.Length;
+                res.SendChunked = false;
+                res.ContentType = contentType;
 
-                BinaryWriter writer = new BinaryWriter(response.OutputStream);
-                while ((read = fs.Read(buffer, 0, buffer.Length)) > 0)
-                    SendResponse(writer, buffer, read, false);
-                writer.Close();
-                response.Close();
+                using (BinaryWriter writer = new BinaryWriter(res.OutputStream))
+                {
+                    while ((read = fs.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        SendResponse(writer, buffer, read, false);
+                    }
+
+                    writer.Close();
+                    res.Close();
+                }
             }
             catch { }
         }
